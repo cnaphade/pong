@@ -8,6 +8,8 @@ SCREEN_WIDTH = 1200
 SCREEN_HEIGHT = 800
 PLAY_WIDTH = SCREEN_WIDTH * 0.9
 PLAY_HEIGHT = SCREEN_HEIGHT * 0.9
+PADDLE_WIDTH = PLAY_WIDTH // 100
+PADDLE_HEIGHT = PLAY_HEIGHT // 10
 WINDOW_COLOR = (10, 15, 20)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -26,7 +28,7 @@ class Ball(object):
         self.x = x
         self.y = y
 
-def draw_window(surface):
+def draw_window(surface, paddle_1, paddle_2, ball):
     surface.fill(WINDOW_COLOR)
 
     # draw play area
@@ -41,11 +43,20 @@ def draw_window(surface):
             midpoints.append((midpoint_x, midpoint_y))
     for i in range(1, len(midpoints), 2):
         pygame.draw.lines(surface, WHITE, False, [midpoints[i], midpoints[i - 1]], 2)
+    
+    # draw paddles
+    pygame.draw.rect(surface, WHITE, (paddle_1.x, paddle_1.y, PADDLE_WIDTH, PADDLE_HEIGHT), 0)
+    pygame.draw.rect(surface, WHITE, (paddle_2.x, paddle_2.y, PADDLE_WIDTH, PADDLE_HEIGHT), 0)
 
-def main(surface, single):
-    global SCREEN_WIDTH, SCREEN_HEIGHT, PLAY_WIDTH, PLAY_HEIGHT, top_left_x, top_left_y
+def main(surface, multiplayer):
+    global SCREEN_WIDTH, SCREEN_HEIGHT, PLAY_WIDTH, PLAY_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT, top_left_x, top_left_y
     
     run = True
+    player_1 = Paddle(top_left_x + PLAY_WIDTH - (PADDLE_WIDTH * 2), top_left_y + (PLAY_HEIGHT // 2))
+    player_2 = Paddle(top_left_x + PADDLE_WIDTH, top_left_y + (PLAY_HEIGHT // 2))
+    ball = Ball(top_left_x + (PLAY_WIDTH // 2), top_left_y + (PLAY_HEIGHT // 2))
+    pygame.key.set_repeat(2)
+
     while run:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -56,19 +67,41 @@ def main(surface, single):
                 SCREEN_HEIGHT = event.h
                 PLAY_WIDTH = SCREEN_WIDTH * 0.9
                 PLAY_HEIGHT = SCREEN_HEIGHT * 0.9
+                PADDLE_WIDTH = PLAY_WIDTH // 100
+                PADDLE_HEIGHT = PLAY_HEIGHT // 10
                 top_left_x = (SCREEN_WIDTH - PLAY_WIDTH) // 2
                 top_left_y = (SCREEN_HEIGHT - PLAY_HEIGHT) // 2
+
+                player_1.x = top_left_x + PLAY_WIDTH - (PADDLE_WIDTH * 2)
+                player_1.y = top_left_y + (PLAY_HEIGHT // 2)
+                player_2.x = top_left_x + PADDLE_WIDTH
+                player_2.y = top_left_y + (PLAY_HEIGHT // 2)
 
                 old_surface = surface
                 surface = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
                 surface.blit(old_surface, (0, 0))
                 del old_surface
             
-            if event.type == pygame.KEYDOWN:
-                continue
+        keys = pygame.key.get_pressed()
+        # move player_1 down
+        if keys[pygame.K_DOWN]:
+            if player_1.y + PADDLE_HEIGHT + 4 <= top_left_y + PLAY_HEIGHT - PADDLE_WIDTH:
+                player_1.y += 4
+        # move player 1 up
+        if keys[pygame.K_UP]:
+            if player_1.y - 4 >= top_left_y + PADDLE_WIDTH:
+                player_1.y -= 4
+        # move player 2 down
+        if multiplayer and keys[pygame.K_s]:
+            if player_2.y + PADDLE_HEIGHT + 4 <= top_left_y + PLAY_HEIGHT - PADDLE_WIDTH:
+                player_2.y += 4
+        # move player 2 up
+        if multiplayer and keys[pygame.K_w]:
+            if player_2.y - 4 >= top_left_y + PADDLE_WIDTH:
+                player_2.y -= 4
         
         # render play
-        draw_window(surface)
+        draw_window(surface, player_1, player_2, ball)
         pygame.display.update()
 
 def main_menu(window):
@@ -108,9 +141,9 @@ def main_menu(window):
                 run = False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_1:
-                    main(window, single = True)
+                    main(window, multiplayer = False)
                 if event.key == pygame.K_2:
-                    main(window, single = False)
+                    main(window, multiplayer = True)
             if event.type == pygame.VIDEORESIZE:
                 SCREEN_WIDTH = event.w
                 SCREEN_HEIGHT = event.h
