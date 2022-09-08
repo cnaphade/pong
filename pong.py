@@ -4,9 +4,17 @@ import random
 # initialize all pygame modules (font, display, etc.)
 pygame.init()
 
-SCREEN_WIDTH = 950
-SCREEN_HEIGHT = 950
+SCREEN_WIDTH = 1200
+SCREEN_HEIGHT = 800
+PLAY_WIDTH = SCREEN_WIDTH * 0.9
+PLAY_HEIGHT = SCREEN_HEIGHT * 0.9
+WINDOW_COLOR = (10, 15, 20)
+BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
+
+# top-left xy coordinates (origin frame of reference)
+top_left_x = (SCREEN_WIDTH - PLAY_WIDTH) // 2
+top_left_y = (SCREEN_HEIGHT - PLAY_HEIGHT) // 2
 
 class Paddle(object):
     def __init__(self, x, y):
@@ -19,17 +27,56 @@ class Ball(object):
         self.y = y
 
 def draw_window(surface):
-    pass
+    surface.fill(WINDOW_COLOR)
+
+    # draw play area
+    pygame.draw.rect(surface, BLACK, (top_left_x, top_left_y, PLAY_WIDTH, PLAY_HEIGHT), 0)
+    
+    # draw center line
+    midpoints = []
+    midpoint_x = top_left_x + (PLAY_WIDTH // 2)
+    line_width = PLAY_HEIGHT // 80
+    for midpoint_y in range(int(top_left_y), int(top_left_y + PLAY_HEIGHT)):
+        if midpoint_y % line_width == 0:
+            midpoints.append((midpoint_x, midpoint_y))
+    for i in range(1, len(midpoints), 2):
+        pygame.draw.lines(surface, WHITE, False, [midpoints[i], midpoints[i - 1]], 2)
 
 def main(surface, single):
-    pass
+    global SCREEN_WIDTH, SCREEN_HEIGHT, PLAY_WIDTH, PLAY_HEIGHT, top_left_x, top_left_y
+    
+    run = True
+    while run:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+            
+            if event.type == pygame.VIDEORESIZE:
+                SCREEN_WIDTH = event.w
+                SCREEN_HEIGHT = event.h
+                PLAY_WIDTH = SCREEN_WIDTH * 0.9
+                PLAY_HEIGHT = SCREEN_HEIGHT * 0.9
+                top_left_x = (SCREEN_WIDTH - PLAY_WIDTH) // 2
+                top_left_y = (SCREEN_HEIGHT - PLAY_HEIGHT) // 2
+
+                old_surface = surface
+                surface = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
+                surface.blit(old_surface, (0, 0))
+                del old_surface
+            
+            if event.type == pygame.KEYDOWN:
+                continue
+        
+        # render play
+        draw_window(surface)
+        pygame.display.update()
 
 def main_menu(window):
     global SCREEN_WIDTH, SCREEN_HEIGHT
 
     run = True
     while run:
-        window.fill((0, 0, 0))
+        window.fill(WINDOW_COLOR)
         # Title
         title_size = SCREEN_HEIGHT // 5
         font = pygame.font.SysFont('couriernew', title_size, bold = True)
@@ -38,7 +85,7 @@ def main_menu(window):
         title_y = (SCREEN_HEIGHT - title.get_height()) / 2
         window.blit(title, (title_x, title_y))
 
-        # Play Mode
+        # Play Against Computer
         label_size = SCREEN_HEIGHT // 40
         font = pygame.font.SysFont('futura', label_size)
         label = font.render('Press 1 to play against Computer', 1, WHITE)
@@ -46,6 +93,7 @@ def main_menu(window):
         label_y = title_y + (title.get_height() * 1.5)
         window.blit(label, (label_x, label_y))
 
+        # Play Against Another Person
         label_size = SCREEN_HEIGHT // 40
         font = pygame.font.SysFont('futura', label_size)
         label = font.render('Press 2 to play Multiplayer', 1, WHITE)
