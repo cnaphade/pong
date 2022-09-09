@@ -59,12 +59,12 @@ def draw_window(surface, paddle_1, paddle_2, ball):
 # set ball speed and direction upon paddle hit
 def paddle_hit_rebound(paddle, ball):
     ball.direction_x *= -1
-    if ball.speed < 5:
+    if ball.speed < 8:
             ball.speed += 1
     # set y-direction of ball based on what part of the paddle it hits
-    if ball.y + BALL_SIZE <= paddle.y + (PADDLE_HEIGHT / 3):
+    if ball.y + BALL_SIZE <= paddle.y + (PADDLE_HEIGHT * 2 / 5):
         ball.direction_y = -1
-    elif ball.y + BALL_SIZE >= paddle.y + (PADDLE_HEIGHT * 2 / 3):
+    elif ball.y >= paddle.y + (PADDLE_HEIGHT * 3 / 5):
         ball.direction_y = 1
     else:
         ball.direction_y = 0
@@ -102,7 +102,7 @@ def main(surface, multiplayer):
     run = True
     player_1 = Paddle(top_left_x + PLAY_WIDTH - (PADDLE_WIDTH * 3), top_left_y + (PLAY_HEIGHT // 2), 0)
     player_2 = Paddle(top_left_x + (PADDLE_WIDTH * 2), top_left_y + (PLAY_HEIGHT // 2), 0)
-    ball = Ball(top_left_x + (PLAY_WIDTH // 2), top_left_y + (PLAY_HEIGHT // 2), 2, 1, 0)
+    ball = Ball(top_left_x + (PLAY_WIDTH // 2), top_left_y + (PLAY_HEIGHT // 2), 4, 1, 0)
 
     pygame.key.set_repeat(2)
 
@@ -149,6 +149,20 @@ def main(surface, multiplayer):
             if player_2.y - 4 >= top_left_y + PADDLE_WIDTH:
                 player_2.y -= 4
         
+        if not multiplayer:
+            if ball.x < top_left_x + (PLAY_WIDTH / 2):
+                # move computer down
+                if player_2.y + (PADDLE_HEIGHT / 2) < ball.y and player_2.y + PADDLE_HEIGHT + 2.75 <= top_left_y + PLAY_HEIGHT - PADDLE_WIDTH:
+                    player_2.y += 2.75
+                # move computer up
+                elif player_2.y + (PADDLE_HEIGHT / 2) > ball.y and player_2.y - 2.75 >= top_left_y + PADDLE_WIDTH:
+                    player_2.y -= 2.75
+            # move computer to center
+            elif player_2.y <= (SCREEN_HEIGHT - PADDLE_HEIGHT) // 2:
+                player_2.y += 2
+            elif player_2.y > (SCREEN_HEIGHT - PADDLE_HEIGHT) // 2:
+                player_2.y -= 2
+        
         # handle ball collisions with wall and paddles
         collision(player_1, player_2, ball)     
         
@@ -156,12 +170,12 @@ def main(surface, multiplayer):
         if point_scored(player_1, player_2, ball):
             ball.x = top_left_x + (PLAY_WIDTH // 2)
             ball.y = top_left_y + (PLAY_HEIGHT // 2)
-            ball.speed = 2
+            ball.speed = 4
             ball.direction_y = 0
 
         # move ball
-        ball.x += ball.speed * ball.direction_x
-        ball.y += ball.direction_y
+        ball.x += (ball.speed / 2) * ball.direction_x
+        ball.y += (ball.speed / 2) * ball.direction_y
         
         # render play
         draw_window(surface, player_1, player_2, ball)
