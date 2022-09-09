@@ -99,8 +99,30 @@ def point_scored(paddle_1, paddle_2, ball):
         paddle_2.score += 1
         ball.direction_x = 1
         return True
-
     return False
+
+def win_message(surface, player_side):
+    label_size = SCREEN_HEIGHT // 20
+    font = pygame.font.SysFont('futura', label_size)
+    label = font.render('WINNER', 1, WHITE)
+    label_x = player_side - (label.get_width() // 2)
+    label_y = top_left_y + (PLAY_HEIGHT // 2) - (label.get_height() // 2)
+    surface.blit(label, (label_x, label_y))
+    pygame.display.update()
+    pygame.time.delay(4000)
+
+def check_victory(surface, paddle_1, paddle_2):
+    if paddle_1.score == 10:
+        # player-1 win message
+        player_side = top_left_x + (PLAY_WIDTH * 3 / 4)
+        win_message(surface, player_side)
+        return True
+    if paddle_2.score == 10:
+        # player-2 win message
+        player_side = top_left_x + (PLAY_WIDTH * 1 / 4)
+        win_message(surface, player_side)
+        return True
+
 
 def main(surface, multiplayer):
     global SCREEN_WIDTH, SCREEN_HEIGHT, PLAY_WIDTH, PLAY_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT, top_left_x, top_left_y
@@ -136,7 +158,12 @@ def main(surface, multiplayer):
                 surface = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
                 surface.blit(old_surface, (0, 0))
                 del old_surface
-            
+
+        # move ball
+        ball.x += ball.speed_x * ball.direction_x
+        ball.y += ball.speed_y * ball.direction_y
+
+        # player controls
         keys = pygame.key.get_pressed()
         # move player_1 down
         if keys[pygame.K_DOWN]:
@@ -155,6 +182,7 @@ def main(surface, multiplayer):
             if player_2.y - 4 >= top_left_y + PADDLE_WIDTH:
                 player_2.y -= 4
         
+        # computer play
         if not multiplayer:
             if ball.x < top_left_x + (PLAY_WIDTH / 2):
                 # move computer down
@@ -179,15 +207,14 @@ def main(surface, multiplayer):
             ball.speed_x = 2
             ball.speed_y = 0
             ball.direction_y = 0
-
-        # move ball
-        ball.x += ball.speed_x * ball.direction_x
-        ball.y += ball.speed_y * ball.direction_y
         
         # render play
         draw_window(surface, player_1, player_2, ball)
         pygame.display.update()
 
+        if check_victory(surface, player_1, player_2):
+            run = False
+        
 def main_menu(window):
     global SCREEN_WIDTH, SCREEN_HEIGHT
 
