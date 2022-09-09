@@ -19,6 +19,11 @@ WHITE = (255, 255, 255)
 top_left_x = (SCREEN_WIDTH - PLAY_WIDTH) // 2
 top_left_y = (SCREEN_HEIGHT - PLAY_HEIGHT) // 2
 
+# game sounds
+paddle_hit_sound = pygame.mixer.Sound("paddle_hit.wav")
+boundary_hit_sound = pygame.mixer.Sound("boundary_hit.wav")
+score_sound = pygame.mixer.Sound("score.wav")
+
 class Paddle(object):
     def __init__(self, x, y, score):
         self.x = x
@@ -77,6 +82,7 @@ def display_score(surface, paddle_1, paddle_2):
 
 # set ball speed and direction upon paddle hit
 def paddle_hit_rebound(paddle, ball):
+    pygame.mixer.Sound.play(paddle_hit_sound)
     ball.direction_x *= -1
     if ball.speed_x < 5:
             ball.speed_x += 1
@@ -105,6 +111,7 @@ def collision(paddle_1, paddle_2, ball):
 
     # check boundary hit
     if ball.y <= top_left_y or ball.y + BALL_SIZE >= top_left_y + PLAY_HEIGHT:
+        pygame.mixer.Sound.play(boundary_hit_sound)
         ball.direction_y *= -1
 
 # check if ball crosses player boundary and count score
@@ -148,7 +155,7 @@ def main(surface, multiplayer):
     run = True
     player_1 = Paddle(top_left_x + PLAY_WIDTH - (PADDLE_WIDTH * 3), top_left_y + ((PLAY_HEIGHT - PADDLE_HEIGHT) // 2), 0)
     player_2 = Paddle(top_left_x + (PADDLE_WIDTH * 2), top_left_y + ((PLAY_HEIGHT - PADDLE_HEIGHT) // 2), 0)
-    ball = Ball(top_left_x + (PLAY_WIDTH // 2), top_left_y + (PLAY_HEIGHT // 2), 2, 0, 1, 0)
+    ball = Ball(top_left_x + (PLAY_WIDTH // 2), top_left_y + (PLAY_HEIGHT // 2), 3, 0, 1, 0)
 
     pygame.key.set_repeat(2)
 
@@ -204,11 +211,11 @@ def main(surface, multiplayer):
         if not multiplayer:
             if ball.x < top_left_x + (PLAY_WIDTH / 2):
                 # move computer down
-                if player_2.y + PADDLE_HEIGHT < ball.y and player_2.y + PADDLE_HEIGHT + 3 <= top_left_y + PLAY_HEIGHT - PADDLE_WIDTH:
-                    player_2.y += 3
+                if player_2.y + PADDLE_HEIGHT < ball.y and player_2.y + PADDLE_HEIGHT + 3.5 <= top_left_y + PLAY_HEIGHT - PADDLE_WIDTH:
+                    player_2.y += 3.5
                 # move computer up
-                elif player_2.y > ball.y and player_2.y - 3 >= top_left_y + PADDLE_WIDTH:
-                    player_2.y -= 3
+                elif player_2.y > ball.y and player_2.y - 3.5 >= top_left_y + PADDLE_WIDTH:
+                    player_2.y -= 3.5
             # move computer to center
             elif player_2.y <= (SCREEN_HEIGHT - PADDLE_HEIGHT) // 2:
                 player_2.y += 1
@@ -220,6 +227,7 @@ def main(surface, multiplayer):
         
         # reset ball position after scores
         if point_scored(player_1, player_2, ball):
+            pygame.mixer.Sound.play(score_sound)
             ball.x = top_left_x + (PLAY_WIDTH // 2)
             ball.y = top_left_y + (PLAY_HEIGHT // 2)
             ball.speed_x = 2
