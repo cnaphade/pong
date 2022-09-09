@@ -211,11 +211,11 @@ def main(surface, multiplayer):
         if not multiplayer:
             if ball.x < top_left_x + (PLAY_WIDTH / 2):
                 # move computer down
-                if player_2.y + PADDLE_HEIGHT < ball.y and player_2.y + PADDLE_HEIGHT + 3.5 <= top_left_y + PLAY_HEIGHT - PADDLE_WIDTH:
-                    player_2.y += 3.5
+                if player_2.y + PADDLE_HEIGHT < ball.y and player_2.y + PADDLE_HEIGHT + 4 <= top_left_y + PLAY_HEIGHT - PADDLE_WIDTH:
+                    player_2.y += 4
                 # move computer up
-                elif player_2.y > ball.y and player_2.y - 3.5 >= top_left_y + PADDLE_WIDTH:
-                    player_2.y -= 3.5
+                elif player_2.y > ball.y and player_2.y - 4 >= top_left_y + PADDLE_WIDTH:
+                    player_2.y -= 4
             # move computer to center
             elif player_2.y <= (SCREEN_HEIGHT - PADDLE_HEIGHT) // 2:
                 player_2.y += 1
