@@ -57,6 +57,24 @@ def draw_window(surface, paddle_1, paddle_2, ball):
     # draw ball
     pygame.draw.rect(surface, WHITE, (ball.x, ball.y, BALL_SIZE, BALL_SIZE))
 
+# show player scores at the top
+def display_score(surface, paddle_1, paddle_2):
+    # show player_1 score
+    label_size = SCREEN_HEIGHT // 20
+    font = pygame.font.SysFont('futura', label_size)
+    label = font.render(str(paddle_1.score), 1, WHITE)
+    label_x = top_left_x + (PLAY_WIDTH // 2) + label.get_width()
+    label_y = top_left_y + label.get_height()
+    surface.blit(label, (label_x, label_y))
+    
+    # show player_2 score
+    label_size = SCREEN_HEIGHT // 20
+    font = pygame.font.SysFont('futura', label_size)
+    label = font.render(str(paddle_2.score), 1, WHITE)
+    label_x = top_left_x + (PLAY_WIDTH // 2) - (label.get_width() * 2)
+    label_y = top_left_y + label.get_height()
+    surface.blit(label, (label_x, label_y))
+
 # set ball speed and direction upon paddle hit
 def paddle_hit_rebound(paddle, ball):
     ball.direction_x *= -1
@@ -210,6 +228,7 @@ def main(surface, multiplayer):
         
         # render play
         draw_window(surface, player_1, player_2, ball)
+        display_score(surface, player_1, player_2)
         pygame.display.update()
 
         if check_victory(surface, player_1, player_2):
