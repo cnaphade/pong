@@ -81,9 +81,9 @@ def display_score(surface, paddle_1, paddle_2):
     surface.blit(label, (label_x, label_y))
 
 # set ball speed and direction upon paddle hit
-def paddle_hit_rebound(paddle, ball):
+def paddle_hit_rebound(paddle, ball, direction):
     pygame.mixer.Sound.play(paddle_hit_sound)
-    ball.direction_x *= -1
+    ball.direction_x = direction
     if ball.speed_x < 5:
             ball.speed_x += 1
     # set y speed and direction of ball based on what part of the paddle it hits
@@ -103,11 +103,11 @@ def paddle_hit_rebound(paddle, ball):
 def collision(paddle_1, paddle_2, ball):
     # check paddle_1 hit
     if ball.x >= paddle_1.x and ball.y + BALL_SIZE >= paddle_1.y and ball.y <= paddle_1.y + PADDLE_HEIGHT:
-        paddle_hit_rebound(paddle_1, ball)
+        paddle_hit_rebound(paddle_1, ball, -1)
         
     # check paddle_2 hit
     if ball.x <= paddle_2.x + PADDLE_WIDTH and ball.y + BALL_SIZE >= paddle_2.y and ball.y <= paddle_2.y + PADDLE_HEIGHT:
-        paddle_hit_rebound(paddle_2, ball)
+        paddle_hit_rebound(paddle_2, ball, 1)
 
     # check boundary hit
     if ball.y <= top_left_y or ball.y + BALL_SIZE >= top_left_y + PLAY_HEIGHT:
