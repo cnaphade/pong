@@ -1,9 +1,13 @@
+# klauria: as discussed, make a State object that contains the ball and paddles, and has a function to step the physics simulation forward by the given dt.
+# klauria: also as discussed, make a function to render the game state to the screen. Nothing else should know about the screen width and height, or anything to do with pixels.
+# klauria: please read about dataclasses in Python, and rewrite Paddle and Object to be dataclasses.
 import pygame
 import random
 
 # initialize all pygame modules (font, display, etc.)
 pygame.init()
 
+# klauria: put these in a class called Config. Make it a dataclass. No globals please!
 SCREEN_WIDTH = 1200
 SCREEN_HEIGHT = 800
 PLAY_WIDTH = SCREEN_WIDTH * 0.9
@@ -15,10 +19,12 @@ WINDOW_COLOR = (10, 15, 20)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 
+# klauria: These should be properties of rendering, and used only by the render function. They should not be globals.
 # top-left xy coordinates (origin frame of reference)
 top_left_x = (SCREEN_WIDTH - PLAY_WIDTH) // 2
 top_left_y = (SCREEN_HEIGHT - PLAY_HEIGHT) // 2
 
+# klauria: Put these in a dataclass called SoundConfig.
 # game sounds
 paddle_hit_sound = pygame.mixer.Sound("paddle_hit.wav")
 boundary_hit_sound = pygame.mixer.Sound("boundary_hit.wav")
@@ -39,6 +45,7 @@ class Ball(object):
         self.direction_x = direction_x
         self.direction_y = direction_y
 
+# klauria: make a submodule called render.py and put all rendering code there. Expose only the single rendering function that takes State and Config.
 def draw_window(surface, paddle_1, paddle_2, ball):
     surface.fill(WINDOW_COLOR)
 
