@@ -3,102 +3,103 @@
 # klauria: please read about dataclasses in Python, and rewrite Paddle and Object to be dataclasses.
 import pygame
 import random
+from dataclasses import dataclass
+from render import *
 
 # initialize all pygame modules (font, display, etc.)
 pygame.init()
 
 # klauria: put these in a class called Config. Make it a dataclass. No globals please!
-SCREEN_WIDTH = 1200
-SCREEN_HEIGHT = 800
-PLAY_WIDTH = SCREEN_WIDTH * 0.9
-PLAY_HEIGHT = SCREEN_HEIGHT * 0.9
-PADDLE_WIDTH = PLAY_WIDTH // 100
-PADDLE_HEIGHT = PLAY_HEIGHT // 8
-BALL_SIZE = 10
-WINDOW_COLOR = (10, 15, 20)
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
+@dataclass
+class Config:
+    SCREEN_WIDTH = 1200
+    SCREEN_HEIGHT = 800
+    PLAY_WIDTH = SCREEN_WIDTH * 0.9
+    PLAY_HEIGHT = SCREEN_HEIGHT * 0.9
 
-# klauria: These should be properties of rendering, and used only by the render function. They should not be globals.
-# top-left xy coordinates (origin frame of reference)
-top_left_x = (SCREEN_WIDTH - PLAY_WIDTH) // 2
-top_left_y = (SCREEN_HEIGHT - PLAY_HEIGHT) // 2
+    def reset_config(self, width, height):
+        self.SCREEN_WIDTH = width
+        self.SCREEN_HEIGHT = height
+        self.PLAY_WIDTH = self.SCREEN_WIDTH * 0.9
+        self.PLAY_HEIGHT = self.SCREEN_HEIGHT * 0.9
 
 # klauria: Put these in a dataclass called SoundConfig.
 # game sounds
-paddle_hit_sound = pygame.mixer.Sound("paddle_hit.wav")
-boundary_hit_sound = pygame.mixer.Sound("boundary_hit.wav")
-score_sound = pygame.mixer.Sound("score.wav")
+@dataclass
+class SoundConfig:
+    paddle_hit_sound = pygame.mixer.Sound("paddle_hit.wav")
+    boundary_hit_sound = pygame.mixer.Sound("boundary_hit.wav")
+    score_sound = pygame.mixer.Sound("score.wav")
 
-class Paddle(object):
-    def __init__(self, x, y, score):
-        self.x = x
-        self.y = y
-        self.score = score
+# Paddle class
+@dataclass
+class Paddle:
+    x: float
+    y: float
+    width: float
+    height: float
+    score: int
 
-class Ball(object):
-    def __init__(self, x, y, speed_x, speed_y, direction_x, direction_y):
-        self.x = x
-        self.y = y
-        self.speed_x = speed_x
-        self.speed_y = speed_y
-        self.direction_x = direction_x
-        self.direction_y = direction_y
+# Ball class
+@dataclass
+class Ball:
+    x: float
+    y: float
+    size: float
+    speed_x: float
+    speed_y: float
+    direction_x: int
+    direction_y: int
 
-# klauria: make a submodule called render.py and put all rendering code there. Expose only the single rendering function that takes State and Config.
-def draw_window(surface, paddle_1, paddle_2, ball):
-    surface.fill(WINDOW_COLOR)
+@dataclass
+class GameState:
+    config: Config = None
+    paddle_1: Paddle = None
+    paddle_2: Paddle = None
+    ball: Ball = None
 
-    # draw play area
-    pygame.draw.rect(surface, BLACK, (top_left_x, top_left_y, PLAY_WIDTH, PLAY_HEIGHT), 0)
+    def initialize(self, config):
+        self.config = config
+        self.paddle_1 = Paddle(x = self.config.PLAY_WIDTH - ((self.config.PLAY_WIDTH / 100) * 3), 
+                        y = (self.config.PLAY_HEIGHT - (self.config.PLAY_HEIGHT / 10)) / 2, 
+                        width = self.config.PLAY_WIDTH / 100, height = self.config.PLAY_HEIGHT / 8, score = 0)
+        self.paddle_2 = Paddle(x = (self.config.PLAY_WIDTH / 100) * 2, 
+                        y = (self.config.PLAY_HEIGHT - (self.config.PLAY_HEIGHT / 10)) / 2, 
+                        width = self.config.PLAY_WIDTH / 100, height = self.config.PLAY_HEIGHT / 8, score = 0)
+        self.ball = Ball(x = self.config.PLAY_WIDTH / 2, y = self.config.PLAY_HEIGHT / 2, size = 10, 
+                    speed_x = 3, speed_y = 0, direction_x = 1, direction_y = 0)
+
+    def reset_paddles(self):
+        self.paddle_1.width = self.config.PLAY_WIDTH / 100
+        self.paddle_1.height = self.config.PLAY_HEIGHT / 10
+        self.paddle_2.width = self.paddle_1.width
+        self.paddle_2.height = self.paddle_1.height
+
+        self.paddle_1.x = self.config.PLAY_WIDTH - (self.paddle_1.width * 3)
+        self.paddle_1.y = (self.config.PLAY_HEIGHT - self.paddle_1.height) / 2
+        self.paddle_2.x = self.paddle_2.width * 2
+        self.paddle_2.y = (self.config.PLAY_HEIGHT - self.paddle_2.height) / 2
+
+    def time_progression(self, dt):
+        # move ball
+        self.ball.x += self.ball.speed_x * self.ball.direction_x * dt
+        self.ball.y += self.ball.speed_y * self.ball.direction_y * dt      
     
-    # draw center line
-    midpoints = []
-    midpoint_x = top_left_x + (PLAY_WIDTH // 2)
-    line_width = PLAY_HEIGHT // 80
-    for midpoint_y in range(int(top_left_y), int(top_left_y + PLAY_HEIGHT)):
-        if midpoint_y % line_width == 0:
-            midpoints.append((midpoint_x, midpoint_y))
-    for i in range(1, len(midpoints), 2):
-        pygame.draw.lines(surface, WHITE, False, [midpoints[i], midpoints[i - 1]], 2)
-    
-    # draw paddles
-    pygame.draw.rect(surface, WHITE, (paddle_1.x, paddle_1.y, PADDLE_WIDTH, PADDLE_HEIGHT), 0)
-    pygame.draw.rect(surface, WHITE, (paddle_2.x, paddle_2.y, PADDLE_WIDTH, PADDLE_HEIGHT), 0)
-
-    # draw ball
-    pygame.draw.rect(surface, WHITE, (ball.x, ball.y, BALL_SIZE, BALL_SIZE))
-
-# show player scores at the top
-def display_score(surface, paddle_1, paddle_2):
-    # show player_1 score
-    label_size = SCREEN_HEIGHT // 20
-    font = pygame.font.SysFont('futura', label_size)
-    label = font.render(str(paddle_1.score), 1, WHITE)
-    label_x = top_left_x + (PLAY_WIDTH // 2) + label.get_width()
-    label_y = top_left_y + label.get_height()
-    surface.blit(label, (label_x, label_y))
-    
-    # show player_2 score
-    label_size = SCREEN_HEIGHT // 20
-    font = pygame.font.SysFont('futura', label_size)
-    label = font.render(str(paddle_2.score), 1, WHITE)
-    label_x = top_left_x + (PLAY_WIDTH // 2) - (label.get_width() * 2)
-    label_y = top_left_y + label.get_height()
-    surface.blit(label, (label_x, label_y))
-
+    def play_sound(self, sound):
+        pygame.mixer.Sound.play(sound)
+        
 # set ball speed and direction upon paddle hit
 def paddle_hit_rebound(paddle, ball, direction):
-    pygame.mixer.Sound.play(paddle_hit_sound)
     ball.direction_x = direction
+
     if ball.speed_x < 5:
             ball.speed_x += 1
     # set y speed and direction of ball based on what part of the paddle it hits
-    if ball.y + BALL_SIZE <= paddle.y + (PADDLE_HEIGHT * 2 / 5):
+    if ball.y + ball.size <= paddle.y + (paddle.height * 2 / 5):
         ball.direction_y = -1
         if ball.speed_y < 5:
             ball.speed_y += 1.5
-    elif ball.y >= paddle.y + (PADDLE_HEIGHT * 3 / 5):
+    elif ball.y >= paddle.y + (paddle.height * 3 / 5):
         ball.direction_y = 1
         if ball.speed_y < 5:
             ball.speed_y += 1.5
@@ -107,199 +108,142 @@ def paddle_hit_rebound(paddle, ball, direction):
         ball.speed_y = random.choice([-1, 0, 1])
 
 # handle collision of ball with paddles and boundaries
-def collision(paddle_1, paddle_2, ball):
+def collision(game_state, config, sound_config):
+    paddle_1 = game_state.paddle_1
+    paddle_2 = game_state.paddle_2
+    ball = game_state.ball
+
     # check paddle_1 hit
-    if ball.x >= paddle_1.x and ball.y + BALL_SIZE >= paddle_1.y and ball.y <= paddle_1.y + PADDLE_HEIGHT:
-        paddle_hit_rebound(paddle_1, ball, -1)
+    if ball.x + ball.size >= paddle_1.x:
+        if ball.y + ball.size >= paddle_1.y:
+            if ball.y <= paddle_1.y + paddle_1.height:
+                game_state.play_sound(sound_config.paddle_hit_sound)
+                paddle_hit_rebound(paddle_1, ball, -1)
         
     # check paddle_2 hit
-    if ball.x <= paddle_2.x + PADDLE_WIDTH and ball.y + BALL_SIZE >= paddle_2.y and ball.y <= paddle_2.y + PADDLE_HEIGHT:
-        paddle_hit_rebound(paddle_2, ball, 1)
+    if ball.x <= paddle_2.x + paddle_2.width:
+        if ball.y + ball.size >= paddle_2.y:
+            if ball.y <= paddle_2.y + paddle_2.height:
+                game_state.play_sound(sound_config.paddle_hit_sound)
+                paddle_hit_rebound(paddle_2, ball, 1)
 
-    # check boundary hit
-    if ball.y <= top_left_y or ball.y + BALL_SIZE >= top_left_y + PLAY_HEIGHT:
-        pygame.mixer.Sound.play(boundary_hit_sound)
+    # check upper and lower boundary hit
+    if ball.y <= 0 or ball.y + ball.size >= config.PLAY_HEIGHT:
+        game_state.play_sound(sound_config.boundary_hit_sound)
         ball.direction_y *= -1
 
 # check if ball crosses player boundary and count score
-def point_scored(paddle_1, paddle_2, ball):
-    if ball.x + BALL_SIZE < paddle_2.x:
-        paddle_1.score += 1
-        ball.direction_x = -1
+def point_scored(game_state):
+    if game_state.ball.x + game_state.ball.size < game_state.paddle_2.x:
+        game_state.paddle_1.score += 1
+        game_state.ball.direction_x = -1
         return True
-    elif ball.x > paddle_1.x + PADDLE_WIDTH:
-        paddle_2.score += 1
-        ball.direction_x = 1
+    elif game_state.ball.x > game_state.paddle_1.x + game_state.paddle_1.width:
+        game_state.paddle_2.score += 1
+        game_state.ball.direction_x = 1
         return True
     return False
 
-def win_message(surface, player_side):
-    label_size = SCREEN_HEIGHT // 20
-    font = pygame.font.SysFont('futura', label_size)
-    label = font.render('WINNER', 1, WHITE)
-    label_x = player_side - (label.get_width() // 2)
-    label_y = top_left_y + (PLAY_HEIGHT // 2) - (label.get_height() // 2)
-    surface.blit(label, (label_x, label_y))
-    pygame.display.update()
-    pygame.time.delay(4000)
-
-def check_victory(surface, paddle_1, paddle_2):
-    if paddle_1.score == 10:
-        # player-1 win message
-        player_side = top_left_x + (PLAY_WIDTH * 3 / 4)
-        win_message(surface, player_side)
-        return True
-    if paddle_2.score == 10:
-        # player-2 win message
-        player_side = top_left_x + (PLAY_WIDTH * 1 / 4)
-        win_message(surface, player_side)
-        return True
-
-
-def main(surface, multiplayer):
-    global SCREEN_WIDTH, SCREEN_HEIGHT, PLAY_WIDTH, PLAY_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT, top_left_x, top_left_y
-    
+def main(surface, config, multiplayer):
     run = True
-    player_1 = Paddle(top_left_x + PLAY_WIDTH - (PADDLE_WIDTH * 3), top_left_y + ((PLAY_HEIGHT - PADDLE_HEIGHT) // 2), 0)
-    player_2 = Paddle(top_left_x + (PADDLE_WIDTH * 2), top_left_y + ((PLAY_HEIGHT - PADDLE_HEIGHT) // 2), 0)
-    ball = Ball(top_left_x + (PLAY_WIDTH // 2), top_left_y + (PLAY_HEIGHT // 2), 3, 0, 1, 0)
+    sound_config = SoundConfig()
+    game_state = GameState()
+    game_state.initialize(config)
 
+    paddle_1 = game_state.paddle_1
+    paddle_2 = game_state.paddle_2
+    ball = game_state.ball
     pygame.key.set_repeat(2)
 
     while run:
+        # move game forward by one timestep
+        game_state.time_progression(1)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
             
             if event.type == pygame.VIDEORESIZE:
-                SCREEN_WIDTH = event.w
-                SCREEN_HEIGHT = event.h
-                PLAY_WIDTH = SCREEN_WIDTH * 0.9
-                PLAY_HEIGHT = SCREEN_HEIGHT * 0.9
-                PADDLE_WIDTH = PLAY_WIDTH // 100
-                PADDLE_HEIGHT = PLAY_HEIGHT // 8
-                top_left_x = (SCREEN_WIDTH - PLAY_WIDTH) // 2
-                top_left_y = (SCREEN_HEIGHT - PLAY_HEIGHT) // 2
-
-                player_1.x = top_left_x + PLAY_WIDTH - (PADDLE_WIDTH * 3)
-                player_1.y = top_left_y + ((PLAY_HEIGHT - PADDLE_HEIGHT) // 2)
-                player_2.x = top_left_x + (PADDLE_WIDTH * 2)
-                player_2.y = top_left_y + ((PLAY_HEIGHT - PADDLE_HEIGHT) // 2)
-
-                old_surface = surface
-                surface = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
-                surface.blit(old_surface, (0, 0))
-                del old_surface
-
-        # move ball
-        ball.x += ball.speed_x * ball.direction_x
-        ball.y += ball.speed_y * ball.direction_y
+                config.reset_config(event.w, event.h)
+                game_state.reset_paddles()
 
         # player controls
         keys = pygame.key.get_pressed()
         # move player_1 down
         if keys[pygame.K_DOWN]:
-            if player_1.y + PADDLE_HEIGHT + 4 <= top_left_y + PLAY_HEIGHT - PADDLE_WIDTH:
-                player_1.y += 4
+            if paddle_1.y + paddle_1.height + 4 <= config.PLAY_HEIGHT - paddle_1.width:
+                paddle_1.y += 4
         # move player 1 up
         if keys[pygame.K_UP]:
-            if player_1.y - 4 >= top_left_y + PADDLE_WIDTH:
-                player_1.y -= 4
-        # move player 2 down
-        if multiplayer and keys[pygame.K_s]:
-            if player_2.y + PADDLE_HEIGHT + 4 <= top_left_y + PLAY_HEIGHT - PADDLE_WIDTH:
-                player_2.y += 4
-        # move player 2 up
-        if multiplayer and keys[pygame.K_w]:
-            if player_2.y - 4 >= top_left_y + PADDLE_WIDTH:
-                player_2.y -= 4
+            if paddle_1.y - 4 >= paddle_1.width:
+                paddle_1.y -= 4
+        
+        # human player_2 play
+        if multiplayer:
+            # move player 2 down
+            if keys[pygame.K_s]:
+                if paddle_2.y + paddle_2.height + 4 <= config.PLAY_HEIGHT - paddle_2.width:
+                    paddle_2.y += 4
+            # move player 2 up
+            if keys[pygame.K_w]:
+                if paddle_2.y - 4 >= paddle_2.width:
+                    paddle_2.y -= 4
         
         # computer play
         if not multiplayer:
-            if ball.x < top_left_x + (PLAY_WIDTH / 2):
+            if ball.x < config.PLAY_WIDTH / 2:
                 # move computer down
-                if player_2.y + PADDLE_HEIGHT < ball.y and player_2.y + PADDLE_HEIGHT + 4 <= top_left_y + PLAY_HEIGHT - PADDLE_WIDTH:
-                    player_2.y += 4
+                if paddle_2.y + paddle_2.height < ball.y:
+                    if paddle_2.y + paddle_2.height + 4 <= config.PLAY_HEIGHT - paddle_2.width:
+                        paddle_2.y += 4
                 # move computer up
-                elif player_2.y > ball.y and player_2.y - 4 >= top_left_y + PADDLE_WIDTH:
-                    player_2.y -= 4
+                elif paddle_2.y > ball.y and paddle_2.y - 4 >= paddle_2.width:
+                    paddle_2.y -= 4
             # move computer to center
-            elif player_2.y <= (SCREEN_HEIGHT - PADDLE_HEIGHT) // 2:
-                player_2.y += 1
-            elif player_2.y > (SCREEN_HEIGHT - PADDLE_HEIGHT) // 2:
-                player_2.y -= 1
-        
+            elif paddle_2.y <= (config.PLAY_HEIGHT - paddle_2.height) / 2:
+                paddle_2.y += 1
+            elif paddle_2.y > (config.PLAY_HEIGHT - paddle_2.height) / 2:
+                paddle_2.y -= 1
+
         # handle ball collisions with wall and paddles
-        collision(player_1, player_2, ball)     
+        collision(game_state, config, sound_config)     
         
         # reset ball position after scores
-        if point_scored(player_1, player_2, ball):
-            pygame.mixer.Sound.play(score_sound)
-            ball.x = top_left_x + (PLAY_WIDTH // 2)
-            ball.y = top_left_y + (PLAY_HEIGHT // 2)
+        if point_scored(game_state):
+            game_state.play_sound(sound_config.score_sound)
+            ball.x = config.PLAY_WIDTH / 2
+            ball.y = config.PLAY_HEIGHT / 2
             ball.speed_x = 2
             ball.speed_y = 0
             ball.direction_y = 0
         
         # render play
-        draw_window(surface, player_1, player_2, ball)
-        display_score(surface, player_1, player_2)
-        pygame.display.update()
-
-        if check_victory(surface, player_1, player_2):
-            run = False
+        draw_play_window(surface, game_state, config)
+        display_score(surface, game_state, config)
         
-def main_menu(window):
-    global SCREEN_WIDTH, SCREEN_HEIGHT
+        if check_victory(surface, game_state, config):
+            run = False
 
+def main_menu(window):
+    config = Config()
     run = True
     while run:
-        window.fill(WINDOW_COLOR)
-        # Title
-        title_size = SCREEN_HEIGHT // 5
-        font = pygame.font.SysFont('couriernew', title_size, bold = True)
-        title = font.render('pong', 1, WHITE)
-        title_x = (SCREEN_WIDTH - title.get_width()) / 2
-        title_y = (SCREEN_HEIGHT - title.get_height()) / 2
-        window.blit(title, (title_x, title_y))
-
-        # Play Against Computer
-        label_size = SCREEN_HEIGHT // 40
-        font = pygame.font.SysFont('futura', label_size)
-        label = font.render('Press 1 to play against Computer', 1, WHITE)
-        label_x = (SCREEN_WIDTH - label.get_width()) / 2
-        label_y = title_y + (title.get_height() * 1.5)
-        window.blit(label, (label_x, label_y))
-
-        # Play Against Another Person
-        label_size = SCREEN_HEIGHT // 40
-        font = pygame.font.SysFont('futura', label_size)
-        label = font.render('Press 2 to play Multiplayer', 1, WHITE)
-        label_x = (SCREEN_WIDTH - label.get_width()) / 2
-        label_y = label_y + (label.get_height() * 1.5)
-        window.blit(label, (label_x, label_y))
-        pygame.display.update()
-
+        draw_main_menu(window, config)
         # start or quit game (allow resize too)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_1:
-                    main(window, multiplayer = False)
+                    main(window, config, multiplayer = False)
                 if event.key == pygame.K_2:
-                    main(window, multiplayer = True)
+                    main(window, config, multiplayer = True)
             if event.type == pygame.VIDEORESIZE:
-                SCREEN_WIDTH = event.w
-                SCREEN_HEIGHT = event.h
-                old_window = window
-                window = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
-                window.blit(old_window, (0, 0))
-                del old_window
+                config.reset_config(event.w, event.h)
 
     pygame.display.quit()
 
 # initialize window and open main menu
-window = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
+window = pygame.display.set_mode((1200, 800), pygame.RESIZABLE)
 pygame.display.set_caption("Pong")
 main_menu(window)
