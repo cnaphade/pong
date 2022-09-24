@@ -58,20 +58,23 @@ class GameState:
     paddle_2: Paddle = None
     ball: Ball = None
 
+    # initialize a new gamestate object
     def initialize(self, config):
         self.config = config
+        self.sound_config = SoundConfig()
         self.paddle_1 = Paddle(x = self.config.PLAY_WIDTH - ((self.config.PLAY_WIDTH / 100) * 3), 
-                        y = (self.config.PLAY_HEIGHT - (self.config.PLAY_HEIGHT / 10)) / 2, 
-                        width = self.config.PLAY_WIDTH / 100, height = self.config.PLAY_HEIGHT / 8, score = 0)
+                        y = (self.config.PLAY_HEIGHT - (self.config.PLAY_HEIGHT / 12)) / 2, 
+                        width = self.config.PLAY_WIDTH / 100, height = self.config.PLAY_HEIGHT / 12, score = 0)
         self.paddle_2 = Paddle(x = (self.config.PLAY_WIDTH / 100) * 2, 
-                        y = (self.config.PLAY_HEIGHT - (self.config.PLAY_HEIGHT / 10)) / 2, 
-                        width = self.config.PLAY_WIDTH / 100, height = self.config.PLAY_HEIGHT / 8, score = 0)
+                        y = (self.config.PLAY_HEIGHT - (self.config.PLAY_HEIGHT / 12)) / 2, 
+                        width = self.config.PLAY_WIDTH / 100, height = self.config.PLAY_HEIGHT / 12, score = 0)
         self.ball = Ball(x = self.config.PLAY_WIDTH / 2, y = self.config.PLAY_HEIGHT / 2, size = 10, 
                     speed_x = 3, speed_y = 0, direction_x = 1, direction_y = 0)
 
+    # reset paddle dimensions and location
     def reset_paddles(self):
         self.paddle_1.width = self.config.PLAY_WIDTH / 100
-        self.paddle_1.height = self.config.PLAY_HEIGHT / 10
+        self.paddle_1.height = self.config.PLAY_HEIGHT / 12
         self.paddle_2.width = self.paddle_1.width
         self.paddle_2.height = self.paddle_1.height
 
@@ -80,69 +83,73 @@ class GameState:
         self.paddle_2.x = self.paddle_2.width * 2
         self.paddle_2.y = (self.config.PLAY_HEIGHT - self.paddle_2.height) / 2
 
+    # set ball speed and direction upon paddle hit
+    def paddle_hit_rebound(self, paddle, direction):
+        self.ball.direction_x = direction
+
+        if self.ball.speed_x < 5:
+                self.ball.speed_x += 1
+        # set y speed and direction of ball based on what part of the paddle it hits
+        if self.ball.y + self.ball.size <= paddle.y + (paddle.height * 2 / 5):
+            self.ball.direction_y = -1
+            if self.ball.speed_y < 5:
+                self.ball.speed_y += 1.5
+        elif self.ball.y >= paddle.y + (paddle.height * 3 / 5):
+            self.ball.direction_y = 1
+            if self.ball.speed_y < 5:
+                self.ball.speed_y += 1.5
+        else:
+            self.ball.direction_y = random.choice([-0.5, 0, 0.5])
+            self.ball.speed_y = random.choice([-1, 0, 1])
+
+    # move physics simulation forward by dt
     def time_progression(self, dt):
         # move ball
         self.ball.x += self.ball.speed_x * self.ball.direction_x * dt
-        self.ball.y += self.ball.speed_y * self.ball.direction_y * dt      
-    
-    def play_sound(self, sound):
-        pygame.mixer.Sound.play(sound)
-        
-# set ball speed and direction upon paddle hit
-def paddle_hit_rebound(paddle, ball, direction):
-    ball.direction_x = direction
+        self.ball.y += self.ball.speed_y * self.ball.direction_y * dt
 
-    if ball.speed_x < 5:
-            ball.speed_x += 1
-    # set y speed and direction of ball based on what part of the paddle it hits
-    if ball.y + ball.size <= paddle.y + (paddle.height * 2 / 5):
-        ball.direction_y = -1
-        if ball.speed_y < 5:
-            ball.speed_y += 1.5
-    elif ball.y >= paddle.y + (paddle.height * 3 / 5):
-        ball.direction_y = 1
-        if ball.speed_y < 5:
-            ball.speed_y += 1.5
-    else:
-        ball.direction_y = random.choice([-0.5, 0, 0.5])
-        ball.speed_y = random.choice([-1, 0, 1])
+        # handle collision of ball with paddles and boundaries
+        # check paddle_1 hit
+        if self.ball.x + self.ball.size >= self.paddle_1.x:
+            if self.ball.y + self.ball.size >= self.paddle_1.y:
+                if self.ball.y <= self.paddle_1.y + self.paddle_1.height:
+                    self.paddle_hit_rebound(self.paddle_1, -1)
+                    return self.sound_config.paddle_hit_sound
+            
+        # check paddle_2 hit
+        if self.ball.x <= self.paddle_2.x + self.paddle_2.width:
+            if self.ball.y + self.ball.size >= self.paddle_2.y:
+                if self.ball.y <= self.paddle_2.y + self.paddle_2.height:
+                    self.paddle_hit_rebound(self.paddle_2, 1)
+                    return self.sound_config.paddle_hit_sound
 
-# handle collision of ball with paddles and boundaries
-def collision(game_state, config, sound_config):
-    paddle_1 = game_state.paddle_1
-    paddle_2 = game_state.paddle_2
-    ball = game_state.ball
+        # check upper and lower boundary hit
+        if self.ball.y <= 0 or self.ball.y + self.ball.size >= self.config.PLAY_HEIGHT:
+            self.ball.direction_y *= -1      
+            return self.sound_config.boundary_hit_sound
 
-    # check paddle_1 hit
-    if ball.x + ball.size >= paddle_1.x:
-        if ball.y + ball.size >= paddle_1.y:
-            if ball.y <= paddle_1.y + paddle_1.height:
-                game_state.play_sound(sound_config.paddle_hit_sound)
-                paddle_hit_rebound(paddle_1, ball, -1)
-        
-    # check paddle_2 hit
-    if ball.x <= paddle_2.x + paddle_2.width:
-        if ball.y + ball.size >= paddle_2.y:
-            if ball.y <= paddle_2.y + paddle_2.height:
-                game_state.play_sound(sound_config.paddle_hit_sound)
-                paddle_hit_rebound(paddle_2, ball, 1)
+        # check if ball crosses player boundary and count score
+        point_scored = False
+        if self.ball.x + self.ball.size < self.paddle_2.x:
+            self.paddle_1.score += 1
+            self.ball.direction_x = -1
+            point_scored = True
+        elif self.ball.x > self.paddle_1.x + self.paddle_1.width:
+            self.paddle_2.score += 1
+            self.ball.direction_x = 1
+            point_scored = True
 
-    # check upper and lower boundary hit
-    if ball.y <= 0 or ball.y + ball.size >= config.PLAY_HEIGHT:
-        game_state.play_sound(sound_config.boundary_hit_sound)
-        ball.direction_y *= -1
+        # reset ball position after scores
+        if point_scored:
+            self.ball.x = self.config.PLAY_WIDTH / 2
+            self.ball.y = self.config.PLAY_HEIGHT / 2
+            self.ball.speed_x = 2
+            self.ball.speed_y = 0
+            self.ball.direction_y = 0
+            return self.sound_config.score_sound
 
-# check if ball crosses player boundary and count score
-def point_scored(game_state):
-    if game_state.ball.x + game_state.ball.size < game_state.paddle_2.x:
-        game_state.paddle_1.score += 1
-        game_state.ball.direction_x = -1
-        return True
-    elif game_state.ball.x > game_state.paddle_1.x + game_state.paddle_1.width:
-        game_state.paddle_2.score += 1
-        game_state.ball.direction_x = 1
-        return True
-    return False
+def play_sound(sound):
+    pygame.mixer.Sound.play(sound)
 
 def main(surface, config, multiplayer):
     run = True
@@ -156,9 +163,6 @@ def main(surface, config, multiplayer):
     pygame.key.set_repeat(2)
 
     while run:
-        # move game forward by one timestep
-        game_state.time_progression(1)
-
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
@@ -204,19 +208,12 @@ def main(surface, config, multiplayer):
                 paddle_2.y += 1
             elif paddle_2.y > (config.PLAY_HEIGHT - paddle_2.height) / 2:
                 paddle_2.y -= 1
+            
+        # move game forward by one timestep
+        interaction = game_state.time_progression(1)
+        if interaction:
+            play_sound(interaction)
 
-        # handle ball collisions with wall and paddles
-        collision(game_state, config, sound_config)     
-        
-        # reset ball position after scores
-        if point_scored(game_state):
-            game_state.play_sound(sound_config.score_sound)
-            ball.x = config.PLAY_WIDTH / 2
-            ball.y = config.PLAY_HEIGHT / 2
-            ball.speed_x = 2
-            ball.speed_y = 0
-            ball.direction_y = 0
-        
         # render play
         draw_play_window(surface, game_state, config)
         display_score(surface, game_state, config)
