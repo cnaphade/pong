@@ -25,7 +25,7 @@ class Config:
 
 # klauria: Put these in a dataclass called SoundConfig.
 # game sounds
-@dataclass
+@dataclass 
 class SoundConfig:
     paddle_hit_sound = pygame.mixer.Sound("paddle_hit.wav")
     boundary_hit_sound = pygame.mixer.Sound("boundary_hit.wav")
@@ -103,7 +103,34 @@ class GameState:
             self.ball.speed_y = random.choice([-1, 0, 1])
 
     # move physics simulation forward by dt
-    def time_progression(self, dt):
+    def time_progression(self, dt, impulse, computer_play):
+        # move paddle_1 up-impulse:0 down-impulse:1
+        if self.paddle_1.y - impulse[0] >= self.paddle_1.width:
+            self.paddle_1.y -= impulse[0]
+        if self.paddle_1.y + self.paddle_1.height + impulse[1] <= config.PLAY_HEIGHT - self.paddle_1.width:
+            self.paddle_1.y += impulse[1]
+        # move paddle_2 up-impulse:2 down-impulse:3
+        if self.paddle_2.y - impulse[2] >= self.paddle_2.width:
+            self.paddle_2.y -= impulse[2]
+        if self.paddle_2.y + self.paddle_2.height + impulse[3] <= config.PLAY_HEIGHT - self.paddle_2.width:
+            self.paddle_2.y += impulse[3]
+        
+        # computer play
+        if computer_play:
+            if self.ball.x < config.PLAY_WIDTH / 2:
+                # move computer down
+                if self.paddle_2.y + self.paddle_2.height < self.ball.y:
+                    if self.paddle_2.y + self.paddle_2.height + 4 <= config.PLAY_HEIGHT - self.paddle_2.width:
+                        self.paddle_2.y += 4
+                # move computer up
+                elif self.paddle_2.y > self.ball.y and self.paddle_2.y - 4 >= self.paddle_2.width:
+                    self.paddle_2.y -= 4
+            # move computer to center
+            elif self.paddle_2.y <= (config.PLAY_HEIGHT - self.paddle_2.height) / 2:
+                self.paddle_2.y += 1
+            elif self.paddle_2.y > (config.PLAY_HEIGHT - self.paddle_2.height) / 2:
+                self.paddle_2.y -= 1
+
         # move ball
         self.ball.x += self.ball.speed_x * self.ball.direction_x * dt
         self.ball.y += self.ball.speed_y * self.ball.direction_y * dt
@@ -153,7 +180,6 @@ def play_sound(sound):
 
 def main(surface, config, multiplayer):
     run = True
-    sound_config = SoundConfig()
     game_state = GameState()
     game_state.initialize(config)
 
@@ -173,44 +199,25 @@ def main(surface, config, multiplayer):
 
         # player controls
         keys = pygame.key.get_pressed()
-        # move player_1 down
-        if keys[pygame.K_DOWN]:
-            if paddle_1.y + paddle_1.height + 4 <= config.PLAY_HEIGHT - paddle_1.width:
-                paddle_1.y += 4
+        impulse = [0 for _ in range(4)]
         # move player 1 up
         if keys[pygame.K_UP]:
-            if paddle_1.y - 4 >= paddle_1.width:
-                paddle_1.y -= 4
+            impulse[0] = 4
+        # move player_1 down
+        if keys[pygame.K_DOWN]:
+            impulse[1] = 4
         
         # human player_2 play
         if multiplayer:
-            # move player 2 down
-            if keys[pygame.K_s]:
-                if paddle_2.y + paddle_2.height + 4 <= config.PLAY_HEIGHT - paddle_2.width:
-                    paddle_2.y += 4
             # move player 2 up
             if keys[pygame.K_w]:
-                if paddle_2.y - 4 >= paddle_2.width:
-                    paddle_2.y -= 4
-        
-        # computer play
-        if not multiplayer:
-            if ball.x < config.PLAY_WIDTH / 2:
-                # move computer down
-                if paddle_2.y + paddle_2.height < ball.y:
-                    if paddle_2.y + paddle_2.height + 4 <= config.PLAY_HEIGHT - paddle_2.width:
-                        paddle_2.y += 4
-                # move computer up
-                elif paddle_2.y > ball.y and paddle_2.y - 4 >= paddle_2.width:
-                    paddle_2.y -= 4
-            # move computer to center
-            elif paddle_2.y <= (config.PLAY_HEIGHT - paddle_2.height) / 2:
-                paddle_2.y += 1
-            elif paddle_2.y > (config.PLAY_HEIGHT - paddle_2.height) / 2:
-                paddle_2.y -= 1
+                impulse[2] = 4
+            # move player 2 down
+            if keys[pygame.K_s]:
+                impulse[3] = 4
             
         # move game forward by one timestep
-        interaction = game_state.time_progression(1)
+        interaction = game_state.time_progression(1, impulse, not multiplayer)
         if interaction:
             play_sound(interaction)
 
@@ -221,8 +228,7 @@ def main(surface, config, multiplayer):
         if check_victory(surface, game_state, config):
             run = False
 
-def main_menu(window):
-    config = Config()
+def main_menu(window, config):
     run = True
     while run:
         draw_main_menu(window, config)
@@ -241,6 +247,7 @@ def main_menu(window):
     pygame.display.quit()
 
 # initialize window and open main menu
-window = pygame.display.set_mode((1200, 800), pygame.RESIZABLE)
+config = Config()
+window = pygame.display.set_mode((config.SCREEN_WIDTH, config.SCREEN_HEIGHT), pygame.RESIZABLE)
 pygame.display.set_caption("Pong")
-main_menu(window)
+main_menu(window, config)
